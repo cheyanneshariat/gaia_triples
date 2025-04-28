@@ -33,5 +33,5 @@ For each star in each triple, we provide:
 ## Notes
 
 - Only **high-confidence triples** (based on low chance alignment probabilities) are included.
-  - All triples, including **false matches**, are provided in `triples_catalog_all_r_chance.csv`
+  - All triples, including **false matches**, are provided in `triples_all_r_chance_score.csv`.
 - Components are consistently labeled where the closest two stars are the inner binary while the 3rd is the tertiary. Among the inner binary, the brighter (fainter) component is the primary (secondary).
