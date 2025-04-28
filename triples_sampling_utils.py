@@ -67,7 +67,6 @@ def get_triple_fraction(mass):
     interpolation_function = interp1d(masses_trip, triple_fractions, kind='linear', fill_value="extrapolate")
     return interpolation_function(mass)/100
 
-# Extract masses and triple fractions
 mass_multiplefraction =   [[0.11622294, 0.00313641*100],
                             [0.15393248, 0.00836102*100],
                             [0.20387722, 0.01684225*100],
@@ -612,27 +611,6 @@ def compute_projected_separations(a1, a2, e1, e2, num_samples):
     s1 = np.array([np.median(simulate_projected_separations(a, e, num_samples)) for a, e in zip(a1, e1)])
     s2 = np.array([np.median(simulate_projected_separations(a, e, num_samples)) for a, e in zip(a2, e2)])
     return s1, s2
-
-# triple fraction as a function of mass
-mass_triplefraction = [[0.10574792264157319, 2.1526418786692574],
-                        [0.21624767972643996, 3.718199608610547],
-                        [0.42762979914903076, 6.457925636007801],
-                        [0.9778928306368192, 11.937377690802336],
-                        [1.1435428088501094, 13.894324853228952],
-                        [1.9775000577578266, 25.24461839530332],
-                        [3.9105064784322034, 36.00782778864969],
-                        [6.394774621219934, 45.20547945205479],
-                        [11.693948181473157, 56.947162426614476],
-                        [29.242831207597824, 67.90606653620351]]
-# Extract masses and triple fractions
-masses = [item[0] for item in mass_triplefraction]
-triple_fractions = [item[1] for item in mass_triplefraction]
-
-# Create the fraction of triples for stars of with given mass
-def get_triple_fraction(mass):
-    interpolation_function = interp1d(masses, triple_fractions, kind='linear', fill_value="extrapolate")
-    return interpolation_function(mass)
-
 
 def sample_all(this_IMF = 'cosmic_constant_SFR', this_Periods = 'DM91', this_IMRD='uniform'):
     m1s,m2s,m3s,a1s,a2s,e1s,e2s = [],[],[],[],[], [], []
