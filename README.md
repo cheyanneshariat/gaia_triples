@@ -24,9 +24,10 @@ For each star in each triple, we provide:
   - `phot_g_mean_mag` (G-band magnitude)
 
 - **Derived quantities:**
-  - **Masses** for main-sequence stars
-  - **R_chance_score**: estimated **chance alignment probability** for the triple
-  - **Star type** (Main-Sequence `MS` or White Dwarf `WD`), determined based on CMD (color–magnitude diagram) location
+  - **abs_g_mag** absolute G magnitude
+  - **Mass** derived from **abs_g_mag**, only applicable for main-sequence stars
+  - **R_chance_score**: chance alignment probability for the triple
+  - **star_type** (Main-Sequence `MS` or White Dwarf `WD`), determined based on CMD (color–magnitude diagram) location
 
 ---
 
