@@ -14,14 +14,14 @@ This repository contains the associated data and code from the Gaia Resolved Tri
 
 ## Contents
 
-For each star in each triple, we provide:
+For each star in the resolved triples, we provide:
 - **Gaia DR3 columns:**
   - `source_id`
   - `parallax`
   - `pmra`, `pmdec`
   - `ra`, `dec`
   - `bp_rp` (color)
-  - `phot_g_mean_mag` (G-band magnitude)
+  - `phot_g_mean_mag` (G-band apparent magnitude)
 
 - **Derived quantities:**
   - **abs_g_mag** absolute G magnitude
