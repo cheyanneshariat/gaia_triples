@@ -5,11 +5,11 @@
 
 ## Overview
 
-This repository contains the associated data and code from the Gaia Resolved Triples catalog project.
+This repository contains the associated data and code from the Gaia Resolved Triples catalog project. This includes
 
-- **`triples_catalog.csv`** contains the **high-confidence triple sample**, where **each row corresponds to one triple**.
-- The data for the **inner primary**, **inner secondary**, and **tertiary** components are labeled with suffixes `1`, `2`, and `3`, respectively.
-
+1. **`triples_catalog.csv`** contains the **high-confidence triple sample**, where **each row corresponds to one triple**.
+  - The data for the **inner primary**, **inner secondary**, and **tertiary** components are labeled with suffixes `1`, `2`, and `3`, respectively.
+2. **`sampling_triples.ipynb`** is a notebook with code to sample a triple population with masses, separations, eccentricities, and inclinations. The code also allows sampling a complete stellar population (singles, binaries, and triples).
 ---
 
 ## Contents
