@@ -40,4 +40,4 @@ For each star in the resolved triples, we provide:
 ---
 ## Contact
 
-For any questions regarding the data or code, please email @cshariat@caltech.edu
+For any questions regarding the data or code, please email: cshariat@caltech.edu.
