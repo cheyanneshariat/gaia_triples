@@ -36,6 +36,7 @@ For each star in the resolved triples, we provide:
 - Only **high-confidence triples** (based on low chance alignment probabilities) are included.
   - All triples, including **false matches**, are provided in `triples_all_r_chance_score.csv`.
 - Components are consistently labeled where the closest two stars are the inner binary while the 3rd is the tertiary. Among the inner binary, the brighter (fainter) component is the primary (secondary).
+- Note that using COSMIC's default `multi_dim` sampler assumed a more top-heavy primary mass function than a Kroupa IMF. We provide a corrected `multi_dim.py` file in this directory.
 
 ---
 ## Contact
