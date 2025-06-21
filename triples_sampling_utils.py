@@ -20,20 +20,16 @@ pd.set_option('display.max_columns', None)
 
 os.environ["PATH"] = "/Library/TeX/texbin:" + os.environ["PATH"]
 
-fig_PATH = "~/Desktop/Research/Figures/"
-data_PATH = "~/Desktop/Caltech/Data/"
+Rsun = (695500*6.68459e-9)  #sun radius in AU
 
-triples_catalog = pd.read_csv(data_PATH + "triples_catalog.csv")
-triple_100pc = triples_catalog.query("1000/inner_star1_parallax<100 and triple_type == 'MSMS-MS'")
-distances_resolvedtrip = 1000 / triple_100pc['inner_star1_parallax']
-
-#################################
-#### FUNCTIONS USED LATER #######
-#################################
 columns = ['sur', 'sur2', 't', 'e1','e2','g1','g2','a1','i1','i2','i','spin1h','spintot',
            'beta','vp','spin1e','spin1q','spin2e','spin2q','spin2h','htot','m1','R1','m2',
            'R2','a2','m3','Roche1','R1','type1','type2','type3','beta2','gamma','gamma2','flag']
 
+# End of basic Imports and Definitions
+# -------------------------------
+
+# mass-Mg interpolation from Pecaut & Mamjek empirical table
 pecaut = pd.read_csv("./Data/pecaut_mamjek.txt",sep=r'\s+')
 pecaut = pecaut[pd.to_numeric(pecaut['M_G'], errors='coerce').notnull()]
 pecaut = pecaut[pd.to_numeric(pecaut['Msun'], errors='coerce').notnull()]
@@ -47,17 +43,19 @@ interp_func = interp1d(pecaut['M_G'], pecaut['Msun'], kind='linear', fill_value=
 pecaut = pecaut.dropna(subset=['Msun', 'M_G'])
 interp_func_inv = interp1d(pecaut['Msun'], pecaut['M_G'], kind='linear', fill_value='extrapolate')
 
+# Triple Fraction of Binaries from Offner+2023 Table 1
+mass_triplefraction = [
+       [0.1125, (2.2/19.)*100], # Winters+2019
+       [0.225, (3.6/23.)*100], # Winters+2019
+       [0.45, (6.3/30.)*100], # Winters+2019
+       [1.0, (12./46.)*100], # Raghavan+2010
+       [1.175, ((14.)/47.)*100], # Tokovinin 2014
+       [2.0, ((25)/68.)*100], # Moe and Kratter 2021
+       [4.0, (36./81.)*100], # Moe and Di Stefano 2017
+       [6.5, (45./89.)*100], # Moe and Di Stefano 2017
+       [12.0, (57./93.)*100], # Moe and Di Stefano 2017
+       [33.0, (68./96.)*100]] # Sana et al (2012,2014)
 
-mass_triplefraction = [[0.10574792264157319, 2.1526418786692574],
-                        [0.21624767972643996, 3.718199608610547],
-                        [0.42762979914903076, 6.457925636007801],
-                        [0.9778928306368192, 11.937377690802336],
-                        [1.1435428088501094, 13.894324853228952],
-                        [1.9775000577578266, 25.24461839530332],
-                        [3.9105064784322034, 36.00782778864969],
-                        [6.394774621219934, 45.20547945205479],
-                        [11.693948181473157, 56.947162426614476],
-                        [29.242831207597824, 67.90606653620351]]
 # Extract masses and triple fractions
 masses_trip = [item[0] for item in mass_triplefraction]
 triple_fractions = [item[1] for item in mass_triplefraction]
@@ -67,50 +65,17 @@ def get_triple_fraction(mass):
     interpolation_function = interp1d(masses_trip, triple_fractions, kind='linear', fill_value="extrapolate")
     return interpolation_function(mass)/100
 
-mass_multiplefraction =   [[0.11622294, 0.00313641*100],
-                            [0.15393248, 0.00836102*100],
-                            [0.20387722, 0.01684225*100],
-                            [0.27002695, 0.03184672*100],
-                            [0.35763955, 0.05085594*100],
-                            [0.47367882, 0.07607926*100],
-                            [0.62736805, 0.10397445*100],
-                            [0.83092308, 0.11769751*100],
-                            [1.10052331, 0.13951625*100],
-                            [1.45759769, 0.15402938*100],
-                            [1.93052796, 0.15998134*100],
-                            [3.9105064784322034, 81.01761252446184],
-                            [6.394774621219934, 89.04109589041096],
-                            [11.5639657341197, 92.95499021526419],
-                            [29.242831207597824, 95.89041095890411]]
+def get_outer_eccentricity(e_out):
+    if e_out == 'uniform':
+        e2  = np.random.uniform(0,1)
+    elif e_out == 'thermal':
+        e2  = sample_thermal_eccentricity(n_samples = 1)[0]
+    return e2
 
-masses_bin = [item[0] for item in mass_multiplefraction]
-binary_fractions = [item[1] for item in mass_multiplefraction]
-
-def get_binary_fraction(mass):
-    interpolation_function = interp1d(masses_bin, binary_fractions, kind='linear', fill_value="extrapolate")
-    return interpolation_function(mass)/100
-
-def get_first_line(file_path): #get first line 
-    with open(file_path) as f:
-        return f.readline()
-
-def get_last_line(file_path): #faster way to get last line
-    with open(file_path, 'rb') as file:
-        try:
-            file.seek(-2, os.SEEK_END)
-            while file.read(1) != b'\n':
-                file.seek(-2, os.SEEK_CUR)
-        except OSError:
-            file.seek(0)
-        last_line = file.readline().decode()
-        return last_line
-def get_second_to_last_line(file_path):
-    with open(file_path, 'r') as file:
-        # Read the last two lines from the file
-        lines = file.readlines()[-2:]
-
-        # Return the second to last line
-        return lines[0] if len(lines) > 1 else None
+def sample_log_uniform(x1, x2, size=1):
+    log_x1, log_x2 = np.log10(x1), np.log10(x2)  # Convert to log-space
+    samples = 10**(np.random.uniform(log_x1, log_x2, size))  # Sample uniformly in log-space
+    return samples
 
 def maybe_float(s):
     try:
@@ -173,71 +138,12 @@ def random_normal_bounds(mean, sigma, lower, upper):
     else:
         return random_normal_bounds(mean, sigma, lower, upper)
 
-def rndm(a, b, g, size=1):
-    """Power-law gen for pdf(x)\propto x^{g-1} for a<=x<=b"""
-    r = np.random.random(size=size)
-    ag, bg = a**g, b**g
-    return (ag + (bg - ag)*r)**(1./g) 
- 
-def miller_scalo_IMF(arr,lower=0.1,upper=8.0):
-
-    if 0.1<arr<=1: return rndm(0.1,1.0,-0.25)[0]
-    if 1.<arr<=2.: return rndm(1.0,2.0,-1.00)[0]
-    if 2.<arr<=10: return rndm(2.0,8.0,-1.30)[0]
-    if 10<arr<=25: return rndm(10.0,125.0,-2.30)[0]
-
-def kroupa_IMF(arr,lower=0.08,upper=8.0):
-
-    #if arr<0.08: return rndm(0.1,1.0,0.7)[0]
-    if 0.08<=arr<0.5: return rndm(0.08,0.5,-0.3)[0]
-    if 0.5<=arr<150: 
-        if lower > 0.5:
-            return rndm(lower,upper,-1.30)[0]
-        else:
-            return rndm(0.5,upper,-1.30)[0]
-
 def open_fits(path):
     hdu = fits.open(path)
     table = hdu[1].data
     df = Table(table).to_pandas()
     return df
 
-
-def sampleFromSalpeter(M_min : int, M_max : int,N :int = 1, alpha : float = 2.35):
-    """Sample from a Salpeter, but can be used for any power law
-
-    Args:
-        M_min (int): lower bound of mass interval
-        M_max (int): upper bound of mass interval
-        N (int, optional): number of samples. Defaults to 1.
-        alpha (float, optional): power-law index. Defaults to 2.35 for Salpeter.
-
-    Returns:
-        float: if you only wanted one sample
-        list:  if you wanted multiple samples
-    """
-    
-    # Convert limits from M to logM.
-    log_M_Min = math.log(M_min)
-    log_M_Max = math.log(M_max)
-    # Since Salpeter SMF decays, maximum likelihood occurs at M_min
-    maxlik = math.pow(M_min, 1.0 - alpha)
-
-    # Prepare array for output masses.
-    Masses = []
-    # Fill in array.
-    while (len(Masses) < N):
-        # Draw candidate from logM interval.
-        logM = random.uniform(log_M_Min,log_M_Max)
-        M    = math.exp(logM)
-        # Compute likelihood of candidate from Salpeter SMF.
-        likelihood = math.pow(M, 1.0 - alpha)
-        # Accept randomly.
-        u = random.uniform(0.0,maxlik)
-        if (u < likelihood):
-            Masses.append(M)
-            
-    return Masses if len(Masses) > 1 else Masses[0]
 
 def sample_power_law(alpha, xmin, xmax, size=1):
     """
@@ -262,98 +168,32 @@ def sample_power_law(alpha, xmin, xmax, size=1):
         samples = factor**(1/(alpha+1))
     return samples
 
-Rsun = (695500*6.68459e-9)  #sun radius in AU
-
-Kroupa_IMF_gen1 = np.vectorize(lambda arr: kroupa_IMF(arr,lower=0.1)) #vectorize the function
-Kroupa_IMF_gen2 = np.vectorize(lambda arr: kroupa_IMF(arr,lower=18,upper=60)) #vectorize the function
-x1= np.linspace(0.08,8,int(1e6))
-x2 = np.linspace(18,60,int(1e6))
-Kroupa_IMF_samples1 = Kroupa_IMF_gen1(x1)
-Kroupa_IMF_samples2 = Kroupa_IMF_gen2(x2)
-
-n_Kroupa1, bins_Kroupa1, patches1 = plt.hist(Kroupa_IMF_samples1,bins=5000,cumulative=False,density=True) 
-# n_Kroupa2, bins_Kroupa2, patches2 = plt.hist(Kroupa_IMF_samples2,bins=5000,cumulative=False,density=True,histtype='step') 
-plt.clf()
 
 # BOOLEANS to check that parameters are **STABLE**
-def get_all_criteria(a1,a2,e1,e2,m1,m2,m3,R1,R2,i,q_out):
-    #stability_criteria from Mardling & Aarseth (2001),**BOOL**
-    stable = 2.8 * np.power(1.+ q_out,2./5.) * np.power(1.+e2, 2./5.)*np.power(1.-e2, -6./5.)*(1-(0.3*i/180.)) 
-    epsilon = (a1/a2) * e2 / (1-e2**2) #epsilon criterion from Naoz+2014
-    
-    Roche1=Roche_limit(m1/m2)
-    Roche2=Roche_limit(m2/m1)
+def get_all_criteria(a1,a2,e1,e2,m1,m2,m3,R1,R2,i,q_out,simple=False):
+    if simple:
+        P1 = Kepler_3rdLaw_SMA(m1,m2,a1)
+        P2 = Kepler_3rdLaw_SMA(m1+m2,m3,a2)
+        all_criteria = ((P2/P1) > 5)
+    else:
+        #stability_criteria from Mardling & Aarseth (2001),**BOOL**
+        stable = 2.8 * np.power(1.+ q_out,2./5.) * np.power(1.+e2, 2./5.)*np.power(1.-e2, -6./5.)*(1-(0.3*i/180.)) 
+        epsilon = (a1/a2) * e2 / (1-e2**2) #epsilon criterion from Naoz+2014
+        
+        Roche1=Roche_limit(m1/m2)
+        Roche2=Roche_limit(m2/m1)
 
-    stability_criteria = (a2/a1) > stable
-    epsilon_criteria = epsilon < 0.1
-    Roche1_criteria = R1*Rsun < 2*(a1*(1-e1)*Roche1)
-    Roche2_criteria = R2*Rsun < 2*(a1*(1-e1)*Roche2)
-    mass_criteria =  m1>0 and m2>0 and m3>0 #this condition should already be met bc pos_normal function
-    BH_NS_no_RLO = a2 <= 1e5
-    all_criteria = (stability_criteria and mass_criteria and epsilon_criteria and (Roche1_criteria and Roche2_criteria) and BH_NS_no_RLO)
+        stability_criteria = (a2/a1) > stable
+        epsilon_criteria = epsilon < 0.1 # hierarchical
+        Roche1_criteria = R1*Rsun < 2*(a1*(1-e1)*Roche1) # not immediately near roche limit
+        Roche2_criteria = R2*Rsun < 2*(a1*(1-e1)*Roche2) # not immediately near roche limit
+        mass_criteria =  m1>0 and m2>0 and m3>0 #this condition should already be met bc pos_normal function
+        BH_NS_no_RLO = a2 <= 1e5 #galactic tides super dominant
+        all_criteria = (stability_criteria and mass_criteria and epsilon_criteria and (Roche1_criteria and Roche2_criteria) and BH_NS_no_RLO)
+    
     
     return all_criteria
 
-from numpy.random import random as rndm
-from scipy import interpolate
-import cProfile
-
-
-# Define all the distributions
-def f1(x):
-    return 1 - 0.5 * x
-
-def f2(x):
-    return x**(-1.3)
-
-def f3(x):
-    return x**(-0.55)
-
-def f4(x):
-    return x**(-1.7)
-
-def f5(x):
-    beta = -0.4
-    qlo = 0.01
-    return x**beta * (1 + beta) / (1 - qlo**(1 + beta))
-
-def f6(x):
-    return x**(-1.6)
-
-# Define bounds for each distribution
-bounds = {
-    1: (0, 3.5),
-    2: (0.1, 3.0),
-    3: (0.15, 8.0),
-    4: (1.1, 150),
-    5: (0.01, 1),
-    6: (50, 5e4)
-}
-
-# Mapping from which -> function
-functions = {
-    1: f1,
-    2: f2,
-    3: f3,
-    4: f4,
-    5: f5,
-    6: f6
-}
-
-def build_inverse_cdf(which):
-    f = functions[which]
-    xmin, xmax = bounds[which]
-    x = np.linspace(xmin, xmax, 10000)
-    y = f(x)
-    y = np.clip(y, 0, None)  # Ensure no negative probabilities
-    cdf = np.cumsum(y)
-    cdf /= cdf[-1]  # Normalize to 1
-    return interp1d(cdf, x, bounds_error=False, fill_value="extrapolate")
-
-def return_samples(N=10, which=2):
-    inverse_cdf = build_inverse_cdf(which)
-    u = np.random.uniform(0, 1, size=N)
-    return inverse_cdf(u)
 
 def sample_thermal_eccentricity(n_samples):
     """
@@ -372,102 +212,6 @@ def sample_thermal_eccentricity(n_samples):
     return eccentricities
 
 
-def sample_q(n_samples, a, b1, b2, x_break, x_values = np.linspace(0, 3, 10000)):
-    """
-    Sample q values from a broken power law distribution.
-
-    Parameters:
-    - n_samples: Number of samples to generate.
-    - a, b1, b2, x_break: Parameters of the broken power law.
-
-    Returns:
-    - samples: Array of sampled q values.
-    """
-    # Define the broken power law function
-    def broken_power_law(x, a, b1, b2, x_break):
-        return np.piecewise(x, 
-                            [x < x_break, x >= x_break], 
-                            [lambda x: a * (x)**b1, 
-                             lambda x: a * (x_break)**(b1 - b2) * (x)**b2])
-
-    # Generate a large number of x values to create the CDF
-    pdf_values = broken_power_law(x_values, a, b1, b2, x_break)
-    cdf_values = np.cumsum(pdf_values)
-    cdf_values /= cdf_values[-1]  # Normalize to range [0, 1]
-
-    # Create an inverse function (CDF⁻¹)
-    inverse_cdf = interp.interp1d(cdf_values, x_values, kind="linear")
-
-    # Sample random values from uniform [0, 1] and map to q values
-    random_samples = np.random.rand(n_samples)
-    samples = inverse_cdf(random_samples)
-
-    return samples
-
-
-def double_broken_power_law(x, a, b1, b2, b3, x_break1, x_break2):
-    return np.piecewise(x, 
-                        [x < x_break1, (x >= x_break1) & (x < x_break2), x >= x_break2], 
-                        [lambda x: a * (x + 0.01)**b1, 
-                            lambda x: a * (x_break1 + 0.01)**(b1 - b2) * (x + 0.01)**b2,
-                            lambda x: a * (x_break1 + 0.01)**(b1 - b2) * (x_break2 + 0.01)**(b2 - b3) * (x + 0.01)**b3])
-
-def sample_from_doublebroken(n_samples, a, b1, b2, b3, x_break1, x_break2, x_values=np.linspace(0.01, 1, 10000)):
-    """
-    Sample values from a double broken power law distribution.
-
-    Parameters:
-    - n_samples: Number of samples to generate.
-    - a, b1, b2, b3, x_break1, x_break2: Parameters of the double broken power law.
-    - x_values: Range of x values to calculate the PDF and CDF.
-
-    Returns:
-    - samples: Array of sampled values.
-    """
-    # Define the double broken power law function
-    def double_broken_power_law(x, a, b1, b2, b3, x_break1, x_break2):
-        return np.piecewise(x, 
-                            [x < x_break1, (x >= x_break1) & (x < x_break2), x >= x_break2], 
-                            [lambda x: a * (x + 0.01)**b1, 
-                             lambda x: a * (x_break1 + 0.01)**(b1 - b2) * (x + 0.01)**b2,
-                             lambda x: a * (x_break1 + 0.01)**(b1 - b2) * (x_break2 + 0.01)**(b2 - b3) * (x + 0.01)**b3])
-
-    # Generate PDF and CDF
-    pdf_values = double_broken_power_law(x_values, a, b1, b2, b3, x_break1, x_break2)
-    cdf_values = np.cumsum(pdf_values)
-    cdf_values /= cdf_values[-1]  # Normalize to range [0, 1]
-
-    # Create an inverse function (CDF⁻¹)
-    inverse_cdf = interp.interp1d(cdf_values, x_values, kind="linear")
-
-    # Sample random values from uniform [0, 1] and map to the distribution
-    random_samples = np.random.rand(n_samples)
-    # Clip random samples to ensure they are within the range of the CDF
-    random_samples = np.clip(random_samples, cdf_values[0], cdf_values[-1])
-    samples = inverse_cdf(random_samples)
-
-    return samples
-
-def sample_log_uniform(x1, x2, size=1):
-    log_x1, log_x2 = np.log10(x1), np.log10(x2)  # Convert to log-space
-    samples = 10**(np.random.uniform(log_x1, log_x2, size))  # Sample uniformly in log-space
-    return samples
-
-def uniform_twin():
-    if np.random.rand() < 0.18:
-        # 10% of the time, sample from [0.9, 1]
-        return np.random.uniform(0.95, 1.0)
-    else:
-        # 90% of the time, sample from [0.01, 0.9)
-        return np.random.uniform(0.0, 0.95)
-# Vectorized version of uniform_twin
-def uniform_twin_vectorized(size=1000):
-    random_values = np.random.rand(size)
-    result = np.where(random_values < 0.18, 
-                      np.random.uniform(0.95, 1.0, size), 
-                      np.random.uniform(0.0, 0.95, size))
-    return result
-
 def absolute_to_apparent_magnitude(absolute_magnitude, distance_pc):
     """
     Convert absolute magnitude to apparent magnitude given a distance in parsecs.
@@ -482,7 +226,7 @@ def absolute_to_apparent_magnitude(absolute_magnitude, distance_pc):
     apparent_magnitude = absolute_magnitude + 5 * (np.log10(distance_pc) - 1)
     return apparent_magnitude
 
-def check_resolved_triple_new(sep_inner, sep_outer, m1, m2, m3, gaia_distances = distances_resolvedtrip, num_iterations = 1):
+def check_resolved_triple_new(sep_inner, sep_outer, m1, m2, m3, gaia_distances, num_iterations = 1):
     
     resolved_counts = 0
     for _ in range(num_iterations):
@@ -515,7 +259,7 @@ def check_resolved_triple_new(sep_inner, sep_outer, m1, m2, m3, gaia_distances =
     else:
         return 'N'
 
-def add_resolved_new(df, num_iterations=1):
+def add_resolved_new(df, gaia_distances, num_iterations=1):
     for i, row in df.iterrows():
         this_a1 = row.sep1_AU
         this_a2 = row.sep2_AU
@@ -527,7 +271,7 @@ def add_resolved_new(df, num_iterations=1):
         resolved = check_resolved_triple_new(sep_inner = this_a1,
                                         sep_outer = this_a2, 
                                         m1 = m1, m2 = m2, m3 = m3,
-                                        gaia_distances = distances_resolvedtrip,num_iterations = num_iterations)
+                                        gaia_distances = gaia_distances,num_iterations = num_iterations)
 
             
             
@@ -612,38 +356,6 @@ def compute_projected_separations(a1, a2, e1, e2, num_samples):
     s2 = np.array([np.median(simulate_projected_separations(a, e, num_samples)) for a, e in zip(a2, e2)])
     return s1, s2
 
-def sample_all(this_IMF = 'cosmic_constant_SFR', this_Periods = 'DM91', this_IMRD='uniform'):
-    m1s,m2s,m3s,a1s,a2s,e1s,e2s = [],[],[],[],[], [], []
-
-    for _ in range(10000):
-        m1,m2,m3,R1,R2,spin1P,spin2P,beta,beta2,gamma,gamma2,a1,a2,e1,e2,g1,g2,i,t_i,age,idum = initial_conditions(IMF = this_IMF, Periods = this_Periods, IMRD=this_IMRD)
-        m1s.append(m1),m2s.append(m2),m3s.append(m3)
-        a1s.append(a1),a2s.append(a2)
-        e1s.append(e1),e2s.append(e2)
-
-    m1s,m2s,m3s,a1s,a2s,e1s,e2s =  np.array(m1s).astype(float), np.array(m2s).astype(float), np.array(m3s).astype(float), np.array(a1s).astype(float), np.array(a2s).astype(float), np.array(e1s).astype(float), np.array(e2s).astype(float)
-
-    s1s, s2s = compute_projected_separations(a1 = a1s, a2 = a2s, e1 = e1s, e2 = e2s, num_samples = 1)
-
-    # Create the DataFrame
-    results_df = pd.DataFrame({
-        'ID': list(range(len(m1s))),
-        'm1': m1s,
-        'm2': m2s,
-        'm3': m3s,
-        'a1': s1s,
-        'a2': s2s,
-        's1': s1s,
-        's2': s2s,
-        'e2': e2s,
-    })
-
-    results_df['sep1_AU'] = results_df['s1']
-    results_df['sep2_AU'] = results_df['s2']
-    results_df = add_resolved_new(results_df, num_iterations=1)
-    # results_df = add_resolved(results_df, num_iterations=1)
-
-    return results_df
 
 from scipy.interpolate import interp1d
 
@@ -653,75 +365,170 @@ from scipy.interpolate import interp1d
 # bins of deltaG
 deltaG_bins = [[0,1],[1,2],[2,3],[3,4],[4,6],[6,8],[8,np.inf]]
 
-# discrete sensitivity as a function of theta for detltaG bins in order
+# sensitivity as a function of theta for detltaG bins in order
+
+
+# From El-Badry 2024, with no cuts  (Uncomment if using all triples, not just those with bp_rp colors)
+# bin1_discrete_xy = [
+#     [0.24193548387096797, 0.0011210762331836932],
+#     [1.290322580645161, 0.9069506726457399],
+#     [1.8064516129032255, 0.9899103139013452],
+#     [2.306451612903226, 1.0100896860986546],
+#     [14.741935483870964, 1.0011210762331837]
+# ]
+# bin2_discrete_xy = [
+#     [0.274193548387097, 0.0011210762331836932],
+#     [1.290322580645161, 0.8531390134529149],
+#     [1.8064516129032255, 0.9742152466367713],
+#     [2.322580645161289, 1.0033632286995515],
+#     [14.741935483870964, 0.9988789237668161]
+# ]
+# bin3_discrete_xy = [
+#     [0.25806451612903203, 0.0011210762331836932],
+#     [1.290322580645161, 0.803811659192825],
+#     [1.8064516129032255, 0.960762331838565],
+#     [2.322580645161289, 1.0033632286995515],
+#     [14.741935483870964, 0.9988789237668161]
+# ]
+# bin4_discrete_xy = [
+#     [0.25806451612903203, 0.0011210762331836932],
+#     [0.7741935483870965, 0.11995515695067271],
+#     [1.290322580645161, 0.6782511210762332],
+#     [1.8064516129032255, 0.9316143497757847],
+#     [2.338709677419354, 0.9966367713004484],
+#     [14.532258064516125, 1.0033632286995515]
+# ]
+# bin5_discrete_xy = [
+#     [0.274193548387097, 0.0011210762331839152],
+#     [0.7741935483870965, 0.005605381165919132],
+#     [1.8064516129032255, 0.7432735426008968],
+#     [2.322580645161289, 0.9114349775784754],
+#     [2.854838709677418, 0.960762331838565],
+#     [3.354838709677419, 0.9831838565022422],
+#     [3.854838709677419, 0.9921524663677129],
+#     [14.532258064516125, 1.0011210762331837]
+# ]
+# bin6_discrete_xy = [
+#     [0.24193548387096797, 0.0033632286995515237],
+#     [1.2741935483870965, 0.0011210762331836932],
+#     [1.790322580645161, 0.12443946188340815],
+#     [2.838709677419355, 0.6760089686098655],
+#     [3.354838709677419, 0.8172645739910314],
+#     [3.887096774193547, 0.8800448430493273],
+#     [4.403225806451612, 0.9226457399103138],
+#     [4.903225806451612, 0.9786995515695067],
+#     [5.435483870967741, 0.9652466367713004],
+#     [5.935483870967741, 0.9831838565022422],
+#     [6.903225806451612, 0.976457399103139],
+#     [7.483870967741934, 0.9988789237668161],
+#     [14.58064516129032, 1.0011210762331837]
+# ]
+# bin7_discrete_xy = [
+#     [0.274193548387097, 0.0011210762331836932],
+#     [1.6290322580645156, 0.0011210762331836932],
+#     [2.677419354838709, 0.0594170403587444],
+#     [4.806451612903224, 0.6199551569506726],
+#     [6.951612903225804, 0.8800448430493273],
+#     [8.016129032258062, 0.9024663677130045],
+#     [9.096774193548386, 0.9674887892376681],
+#     [10.129032258064514, 0.9473094170403586],
+#     [12.290322580645158, 0.9899103139013452],
+#     [13.2258064516129, 0.9966367713004484],
+#     [14.499999999999996, 1.0011210762331837],
+# ]
+
+
+# From El-Badry 2024, with BP_RP color cuts
 bin1_discrete_xy = [
-    [0.24193548387096797, -0.0011210762331836932],
-    [1.290322580645161, 0.9069506726457399],
-    [1.8064516129032255, 0.9899103139013452],
-    [2.306451612903226, 1.0100896860986546],
-    [14.741935483870964, 1.0011210762331837]
-]
-bin2_discrete_xy = [
-    [0.274193548387097, -0.0011210762331836932],
-    [1.290322580645161, 0.8531390134529149],
-    [1.8064516129032255, 0.9742152466367713],
-    [2.322580645161289, 1.0033632286995515],
-    [14.741935483870964, 0.9988789237668161]
-]
-bin3_discrete_xy = [
-    [0.25806451612903203, -0.0011210762331836932],
-    [1.290322580645161, 0.803811659192825],
-    [1.8064516129032255, 0.960762331838565],
-    [2.322580645161289, 1.0033632286995515],
-    [14.741935483870964, 0.9988789237668161]
-]
-bin4_discrete_xy = [
-    [0.25806451612903203, -0.0011210762331836932],
-    [0.7741935483870965, 0.11995515695067271],
-    [1.290322580645161, 0.6782511210762332],
-    [1.8064516129032255, 0.9316143497757847],
-    [2.338709677419354, 0.9966367713004484],
-    [14.532258064516125, 1.0033632286995515]
-]
-bin5_discrete_xy = [
-    [0.274193548387097, 0.0011210762331839152],
-    [0.7741935483870965, 0.005605381165919132],
-    [1.8064516129032255, 0.7432735426008968],
-    [2.322580645161289, 0.9114349775784754],
-    [2.854838709677418, 0.960762331838565],
-    [3.354838709677419, 0.9831838565022422],
-    [3.854838709677419, 0.9921524663677129],
-    [14.532258064516125, 1.0011210762331837]
-]
-bin6_discrete_xy = [
-    [0.24193548387096797, -0.0033632286995515237],
-    [1.2741935483870965, -0.0011210762331836932],
-    [1.790322580645161, 0.12443946188340815],
-    [2.838709677419355, 0.6760089686098655],
-    [3.354838709677419, 0.8172645739910314],
-    [3.887096774193547, 0.8800448430493273],
-    [4.403225806451612, 0.9226457399103138],
-    [4.903225806451612, 0.9786995515695067],
-    [5.435483870967741, 0.9652466367713004],
-    [5.935483870967741, 0.9831838565022422],
-    [6.903225806451612, 0.976457399103139],
-    [7.483870967741934, 0.9988789237668161],
-    [14.58064516129032, 1.0011210762331837]
-]
-bin7_discrete_xy = [
-    [0.274193548387097, -0.0011210762331836932],
-    [1.6290322580645156, -0.0011210762331836932],
-    [2.677419354838709, 0.0594170403587444],
-    [4.806451612903224, 0.6199551569506726],
-    [6.951612903225804, 0.8800448430493273],
-    [8.016129032258062, 0.9024663677130045],
-    [9.096774193548386, 0.9674887892376681],
-    [10.129032258064514, 0.9473094170403586],
-    [12.290322580645158, 0.9899103139013452],
-    [13.2258064516129, 0.9966367713004484],
-    [14.499999999999996, 1.0011210762331837],
+    [0.23972602739725968, 0.0011848341232227888],
+    [0.7705479452054789, 0.2665876777251184],
+    [1.2842465753424657, 0.3684834123222749],
+    [1.8150684931506849, 0.4466824644549763],
+    [2.3287671232876717, 0.9016587677725119],
+    [2.825342465753425, 0.9656398104265402],
+    [3.339041095890411, 0.9822274881516587],
+    [3.8869863013698627, 1.0248815165876777],
+    [4.417808219178082, 1.0154028436018958],
+    [8.86986301369863, 1.0011848341232228], 
 ]
 
+bin2_discrete_xy = [
+    [0.2739726027397258, 0.0011848341232227888],
+    [0.8047945205479454, 0.01540284360189581],
+    [1.2842465753424657, 0.04383886255924163],
+    [1.8150684931506849, 0.12677725118483418],
+    [2.3116438356164384, 0.764218009478673],
+    [2.825342465753425, 0.8803317535545023],
+    [3.8869863013698627, 1.0035545023696681],
+    [4.3493150684931505, 1.0082938388625593],
+    [10.256849315068493, 1.0035545023696681]
+]
+
+bin3_discrete_xy = [
+    [0.2910958904109586, 0.0011848341232227888],
+    [0.8047945205479454, 0.010663507109004877],
+    [1.301369863013699, 0.0390995260663507],
+    [1.8150684931506849, 0.12677725118483418],
+    [2.3116438356164384, 0.7405213270142179],
+    [2.859589041095891, 0.8684834123222749],
+    [3.339041095890411, 0.9182464454976303],
+    [3.8698630136986303, 0.9964454976303317],
+    [4.40068493150685, 1.0106635071090047],
+    [7.859589041095892, 1.0035545023696681]
+]
+
+bin4_discrete_xy = [
+    [0.2739726027397258, 0.0011848341232227888],
+    [0.7876712328767121, 0.005924170616113722],
+    [1.2842465753424657, 0.034360189573459765],
+    [1.7979452054794525, 0.1244075829383886],
+    [2.3287671232876717, 0.7381516587677726],
+    [2.8424657534246576, 0.8708530805687204],
+    [3.3732876712328768, 0.9206161137440758],
+    [3.8869863013698627, 0.9988151658767772],
+    [4.40068493150685, 1.0106635071090047],
+    [8.287671232876715, 1.0059241706161137]
+]
+
+bin5_discrete_xy = [
+    [0.2739726027397258, 0.0011848341232227888],
+    [1.25, 0.010663507109004877],
+    [1.7979452054794525, 0.07227488151658767],
+    [2.3116438356164384, 0.6481042654028436],
+    [2.8424657534246576, 0.8234597156398105],
+    [3.8698630136986303, 0.9869668246445498],
+    [4.417808219178082, 1.0082938388625593],
+    [4.914383561643835, 1.0130331753554502],
+    [10.325342465753426, 1.0059241706161137]
+    ]
+
+bin6_discrete_xy = [
+    [0.25684931506849296, -0.0011848341232227888],
+    [1.7979452054794525, 0.005924170616113722],
+    [2.8424657534246576, 0.5627962085308057],
+    [3.8869863013698627, 0.8732227488151658],
+    [4.40068493150685, 0.9040284360189573],
+    [4.914383561643835, 0.9845971563981043],
+    [5.4452054794520555, 0.9656398104265402],
+    [5.941780821917809, 0.9964454976303317],
+    [6.523972602739728, 0.9964454976303317],
+    [6.986301369863015, 0.9869668246445498],
+    [7.5342465753424674, 1.0059241706161137],
+    [12.825342465753426, 1.0011848341232228]
+]
+
+bin7_discrete_xy = [
+    [0.25684931506849296, -0.0035545023696683664],
+    [1.60958904109589, 0.0011848341232227888],
+    [2.6883561643835616, 0.04383886255924163],
+    [4.845890410958906, 0.6078199052132702],
+    [6.969178082191781, 0.8708530805687204],
+    [8.047945205479454, 0.8992890995260664],
+    [9.126712328767123, 0.9727488151658767],
+    [10.222602739726028, 0.9490521327014217],
+    [11.3013698630137, 0.9751184834123223],
+    [14.434931506849317, 1.0011848341232228]
+]
 
 
 # Create interpolation functions for each deltaG bin
