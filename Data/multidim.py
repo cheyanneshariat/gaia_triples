@@ -819,7 +819,8 @@ class Worker(object):
             mycumPbindist_flat = (cumPbindist[:, indM1]).flatten()
             # If M1 < 0.8 Msun, rescale to appropriate binary star fraction
             if(myM1 <= 0.8):
-                mycumPbindist_flat = mycumPbindist_flat * np.interp(np.log10(myM1), np.log10([0.08, 0.8]), [0.0, 1.0])
+#                mycumPbindist_flat = mycumPbindist_flat * np.interp(np.log10(myM1), np.log10([0.08, 0.8]), [0.0, 1.0]) # Default
+                mycumPbindist_flat = mycumPbindist_flat * np.interp(np.log10(myM1), np.log10([0.08, 0.8]), [0.20, 1.0]) # Cheyanne changed to 0.2 from Winters+2019
 
             # ; Given M1, determine the binary star fraction
             mybinfrac = np.max(mycumPbindist_flat)
