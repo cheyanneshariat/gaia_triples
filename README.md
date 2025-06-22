@@ -5,7 +5,7 @@
 
 ## Overview
 
-This repository contains the associated data and code from the Gaia Resolved Triples catalog project. This includes
+This repository contains the associated data and code from the Gaia Resolved Triples project. This includes
 
 1. **`triples_catalog.csv`** contains the **high-confidence triple sample**, where **each row corresponds to one triple**.
   - The data for the **inner primary**, **inner secondary**, and **tertiary** components are labeled with suffixes `1`, `2`, and `3`, respectively.
@@ -35,8 +35,8 @@ For each star in the resolved triples, we provide:
 
 - Only **high-confidence triples** (based on low chance alignment probabilities) are included.
   - All triples, including **false matches**, are provided in `triples_all_r_chance_score.csv`.
-- Components are consistently labeled where the closest two stars are the inner binary while the 3rd is the tertiary. Among the inner binary, the brighter (fainter) component is the primary (secondary).
-- Note that using COSMIC's default `multi_dim` sampler assumed a more top-heavy primary mass function than a Kroupa IMF. We provide a corrected `multi_dim.py` file in this directory.
+- Components are consistently labeled, where the closest two stars are the inner binary, while the 3rd is the tertiary. Among the inner binary, the brighter (fainter) component is the primary (secondary).
+- Note that using COSMIC's default `multi_dim` sampler assumes a more top-heavy primary mass function than a Kroupa IMF. We provide a corrected `multi_dim.py` file in this directory.
 
 ---
 ## Contact
