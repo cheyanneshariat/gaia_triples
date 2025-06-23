@@ -1,3 +1,7 @@
+# Helper Functions for sampling_triples.ipynb (import before running the notebook)
+# Written by Cheyanne Shariat for Shariat, El-Badry, & Naoz (2025)
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +19,7 @@ from scipy import interpolate as interp
 from scipy.optimize import newton
 from scipy.interpolate import interp1d
 
-random.seed(1)  # set random seed.
+random.seed(1)  # set random seed 
 pd.set_option('display.max_columns', None)
 
 os.environ["PATH"] = "/Library/TeX/texbin:" + os.environ["PATH"]
@@ -26,8 +30,6 @@ columns = ['sur', 'sur2', 't', 'e1','e2','g1','g2','a1','i1','i2','i','spin1h','
            'beta','vp','spin1e','spin1q','spin2e','spin2q','spin2h','htot','m1','R1','m2',
            'R2','a2','m3','Roche1','R1','type1','type2','type3','beta2','gamma','gamma2','flag']
 
-# End of basic Imports and Definitions
-# -------------------------------
 
 # mass-Mg interpolation from Pecaut & Mamjek empirical table
 pecaut = pd.read_csv("./Data/pecaut_mamjek.txt",sep=r'\s+')
@@ -37,13 +39,21 @@ pecaut['M_G'] = pecaut['M_G'].astype('float')
 pecaut['Msun'] = pd.to_numeric(pecaut['Msun'], errors='coerce')
 pecaut['M_G'] = pd.to_numeric(pecaut['M_G'], errors='coerce')
 
+# interpolation function of mass given absolute mangitude (Mg) of main sequence star
 interp_func = interp1d(pecaut['M_G'], pecaut['Msun'], kind='linear', fill_value='extrapolate')
 
-# Drop rows with NaN values
+# Drop rows with NaN values and make inverse interpolation function
 pecaut = pecaut.dropna(subset=['Msun', 'M_G'])
 interp_func_inv = interp1d(pecaut['Msun'], pecaut['M_G'], kind='linear', fill_value='extrapolate')
 
-# Triple Fraction of Binaries from Offner+2023 Table 1
+# End of basic Imports and Definitions
+# -------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
+
+# Triple Fraction among multiples (THF/MF from Offner+2023, Table 1)
 mass_triplefraction = [
        [0.1125, (2.2/19.)*100], # Winters+2019
        [0.225, (3.6/23.)*100], # Winters+2019
@@ -60,11 +70,12 @@ mass_triplefraction = [
 masses_trip = [item[0] for item in mass_triplefraction]
 triple_fractions = [item[1] for item in mass_triplefraction]
 
-# Create an interpolation function
+# Create an interpolation function for f_triple(M1)
 def get_triple_fraction(mass):
     interpolation_function = interp1d(masses_trip, triple_fractions, kind='linear', fill_value="extrapolate")
     return interpolation_function(mass)/100
 
+# Sample a tertiary eccentricity
 def get_outer_eccentricity(e_out):
     if e_out == 'uniform':
         e2  = np.random.uniform(0,1)
@@ -72,20 +83,28 @@ def get_outer_eccentricity(e_out):
         e2  = sample_thermal_eccentricity(n_samples = 1)[0]
     return e2
 
+# Sample from a log-uniform distribution between two values (x1, x2)
 def sample_log_uniform(x1, x2, size=1):
     log_x1, log_x2 = np.log10(x1), np.log10(x2)  # Convert to log-space
     samples = 10**(np.random.uniform(log_x1, log_x2, size))  # Sample uniformly in log-space
     return samples
 
+# make datatype a float if it's a string or in, if not possible return original data
 def maybe_float(s):
     try:
         return float(s)
     except (ValueError, TypeError):
         return s
 
-def Kepler_3rdLaw_SMA(m1,m2,SMA ): #M_sun and AU units, output in yr
-    return np.power( ( (SMA**3)/(m1+m2) ) ,1./2.)
+# kepler 3rd law in solar units, returns period in yr
+def Kepler_3rdLaw_SMA(m1,m2,SMA ): #M_sun and AU units
+    return np.power( ( (SMA**3)/(m1+m2) ) ,1./2.) # output in yr
 
+# kepler 3rd law in solar units, returns SMA in au
+def Kepler_3rdLaw_Period(m1,m2,Period ): #M_sun and AU units
+    return np.power( ( (Period**2) * (m1+m2) ) , 1./3.)
+
+# adaptive K3L function
 def Kepler_3rdLaw(P,m1,m2,SMA = 0,output='a'):
 
     '''
@@ -102,6 +121,7 @@ def Kepler_3rdLaw(P,m1,m2,SMA = 0,output='a'):
     
         mu,sigma = 4.8, 2.3 
 
+
 def Roche_limit(q):
     '''
     Function to get Roche Limit of specified mass ratios (q)
@@ -111,33 +131,38 @@ def Roche_limit(q):
     num1,num2=0.49,0.6;
     return num1*np.power(q,2./3.)/(0.6* np.power(q,2./3.)+np.log(1+np.power(q,1./3.)));
 
+# epsilon (coefficient of EKL octupole term, see Naoz 2016)
 def get_epsilon(a1,a2,e2):
     return (a1/a2) * e2 / (1-e2**2)
+
+# full mass-dependent coefficient
 def get_epsilonM(m1,m2,a1,a2,e2):
     factor =( m1-m2) / (m1+m2)
     return factor*(a1/a2) * e2 / (1-e2**2)
 
-def Kepler_3rdLaw_Period(m1,m2,Period ): #M_sun and AU units, output in yr
-    return np.power( ( (Period**2) * (m1+m2) ) , 1./3.)
-
 def get_t_ekl(m1,m2,m3,e2,P1,P2):
     """
-    Characteristic quadrupole timescale fro EKL (eq 27 from review)
+    Characteristic quadrupole timescale fro EKL (eq 27 from Naoz 2016 review)
     """
     return (8./(15*np.pi))*((m1+m2+m3)/m3)*(P2*P2/P1)*np.sqrt(1-e2*e2)*(1-e2*e2)
+
+# normal distribution that can only be positive (basically Maxwellian)
 def pos_normal(mean, sigma): 
     '''
     Function to get only positive values from normal distribution recursively
     '''
     x = np.random.normal(mean,sigma)
     return (x if x>=0 else pos_normal(mean,sigma))
+
+# normal distribution in a given range
 def random_normal_bounds(mean, sigma, lower, upper):
     val = np.random.normal(mean,sigma)
     if lower<val<upper:
         return val
     else:
-        return random_normal_bounds(mean, sigma, lower, upper)
+        return random_normal_bounds(mean, sigma, lower, upper) # recursively resample until sample falls in the range
 
+# open a fits Table and store as a pandas dataframe
 def open_fits(path):
     hdu = fits.open(path)
     table = hdu[1].data
@@ -169,30 +194,32 @@ def sample_power_law(alpha, xmin, xmax, size=1):
     return samples
 
 
-# BOOLEANS to check that parameters are **STABLE**
+# BOOLEANS to check that parameters create a **STABLE** triple
 def get_all_criteria(a1,a2,e1,e2,m1,m2,m3,R1,R2,i,q_out,simple=False):
+    # Use the simple critera (not realistic)
     if simple:
         P1 = Kepler_3rdLaw_SMA(m1,m2,a1)
         P2 = Kepler_3rdLaw_SMA(m1+m2,m3,a2)
         all_criteria = ((P2/P1) > 5)
+    # Use a better stability criteria (more realistic, default)
     else:
         #stability_criteria from Mardling & Aarseth (2001),**BOOL**
         stable = 2.8 * np.power(1.+ q_out,2./5.) * np.power(1.+e2, 2./5.)*np.power(1.-e2, -6./5.)*(1-(0.3*i/180.)) 
         epsilon = (a1/a2) * e2 / (1-e2**2) #epsilon criterion from Naoz+2014
         
-        Roche1=Roche_limit(m1/m2)
-        Roche2=Roche_limit(m2/m1)
+        Roche1=Roche_limit(m1/m2) 
+        Roche2=Roche_limit(m2/m1) 
 
         stability_criteria = (a2/a1) > stable
         epsilon_criteria = epsilon < 0.1 # hierarchical
-        Roche1_criteria = R1*Rsun < 2*(a1*(1-e1)*Roche1) # not immediately near roche limit
-        Roche2_criteria = R2*Rsun < 2*(a1*(1-e1)*Roche2) # not immediately near roche limit
+        Roche1_criteria = R1*Rsun < 2*(a1*(1-e1)*Roche1) # not immediately near crossing roche limit
+        Roche2_criteria = R2*Rsun < 2*(a1*(1-e1)*Roche2) # not immediately near crossing roche limit
         mass_criteria =  m1>0 and m2>0 and m3>0 #this condition should already be met bc pos_normal function
         BH_NS_no_RLO = a2 <= 1e5 #galactic tides super dominant
         all_criteria = (stability_criteria and mass_criteria and epsilon_criteria and (Roche1_criteria and Roche2_criteria) and BH_NS_no_RLO)
     
     
-    return all_criteria
+    return all_criteria # True of False 
 
 
 def sample_thermal_eccentricity(n_samples):
@@ -226,8 +253,25 @@ def absolute_to_apparent_magnitude(absolute_magnitude, distance_pc):
     apparent_magnitude = absolute_magnitude + 5 * (np.log10(distance_pc) - 1)
     return apparent_magnitude
 
+
 def check_resolved_triple_new(sep_inner, sep_outer, m1, m2, m3, gaia_distances, num_iterations = 1):
-    
+    """applies Gaia Resolvability criterai to see which triples are fully resolved
+
+    Args:
+        sep_inner (np.array): inner binary projected separations (s1)
+        sep_outer (np.array):  outer binary projected separations (s2)
+        m1 (np.array): primary mass (solar masses)
+        m2 (np.array): secondary mass (solar masses)
+        m3 (np.array): tertiary mass (solar masses)
+        gaia_distances (np.array): distances to the triples
+        num_iterations (int, optional): Number of samples. Defaults to 1. 
+                                                            If num_iterations>1 will assume randomly sampled distances 
+                                                            (following onbserbed triples) and assume resolved 
+                                                            if the majority of samples are resolved
+
+    Returns:
+        'Y' or 'N'': Is the triple resolved, Yes or No
+    """
     resolved_counts = 0
     for _ in range(num_iterations):
         sampled_distance = np.random.choice(gaia_distances)  # Sample a distance
@@ -259,6 +303,7 @@ def check_resolved_triple_new(sep_inner, sep_outer, m1, m2, m3, gaia_distances, 
     else:
         return 'N'
 
+# Add new resolved column ('Y' or 'N') to your triples dataframe
 def add_resolved_new(df, gaia_distances, num_iterations=1):
     for i, row in df.iterrows():
         this_a1 = row.sep1_AU
@@ -360,85 +405,86 @@ def compute_projected_separations(a1, a2, e1, e2, num_samples):
 from scipy.interpolate import interp1d
 
 # Gaia sensitivity to resolving a binary; as a function of theta (angular separation) and deltaG = abs(G1-G2), difference in apparent Gaia G magnitudes
-# Adopted from El-Badry 2024
+# Adopted from El-Badry 2024 Figure 2
 
 # bins of deltaG
 deltaG_bins = [[0,1],[1,2],[2,3],[3,4],[4,6],[6,8],[8,np.inf]]
 
 # sensitivity as a function of theta for detltaG bins in order
+# From El-Badry 2024, with no cuts  (their Figure 2 Row 1)
+# Uncomment if using all triples, not just those with bp_rp colors
 
+"""
+bin1_discrete_xy = [
+    [0.24193548387096797, 0.0011210762331836932],
+    [1.290322580645161, 0.9069506726457399],
+    [1.8064516129032255, 0.9899103139013452],
+    [2.306451612903226, 1.0100896860986546],
+    [14.741935483870964, 1.0011210762331837]
+]
+bin2_discrete_xy = [
+    [0.274193548387097, 0.0011210762331836932],
+    [1.290322580645161, 0.8531390134529149],
+    [1.8064516129032255, 0.9742152466367713],
+    [2.322580645161289, 1.0033632286995515],
+    [14.741935483870964, 0.9988789237668161]
+]
+bin3_discrete_xy = [
+    [0.25806451612903203, 0.0011210762331836932],
+    [1.290322580645161, 0.803811659192825],
+    [1.8064516129032255, 0.960762331838565],
+    [2.322580645161289, 1.0033632286995515],
+    [14.741935483870964, 0.9988789237668161]
+]
+bin4_discrete_xy = [
+    [0.25806451612903203, 0.0011210762331836932],
+    [0.7741935483870965, 0.11995515695067271],
+    [1.290322580645161, 0.6782511210762332],
+    [1.8064516129032255, 0.9316143497757847],
+    [2.338709677419354, 0.9966367713004484],
+    [14.532258064516125, 1.0033632286995515]
+]
+bin5_discrete_xy = [
+    [0.274193548387097, 0.0011210762331839152],
+    [0.7741935483870965, 0.005605381165919132],
+    [1.8064516129032255, 0.7432735426008968],
+    [2.322580645161289, 0.9114349775784754],
+    [2.854838709677418, 0.960762331838565],
+    [3.354838709677419, 0.9831838565022422],
+    [3.854838709677419, 0.9921524663677129],
+    [14.532258064516125, 1.0011210762331837]
+]
+bin6_discrete_xy = [
+    [0.24193548387096797, 0.0033632286995515237],
+    [1.2741935483870965, 0.0011210762331836932],
+    [1.790322580645161, 0.12443946188340815],
+    [2.838709677419355, 0.6760089686098655],
+    [3.354838709677419, 0.8172645739910314],
+    [3.887096774193547, 0.8800448430493273],
+    [4.403225806451612, 0.9226457399103138],
+    [4.903225806451612, 0.9786995515695067],
+    [5.435483870967741, 0.9652466367713004],
+    [5.935483870967741, 0.9831838565022422],
+    [6.903225806451612, 0.976457399103139],
+    [7.483870967741934, 0.9988789237668161],
+    [14.58064516129032, 1.0011210762331837]
+]
+bin7_discrete_xy = [
+    [0.274193548387097, 0.0011210762331836932],
+    [1.6290322580645156, 0.0011210762331836932],
+    [2.677419354838709, 0.0594170403587444],
+    [4.806451612903224, 0.6199551569506726],
+    [6.951612903225804, 0.8800448430493273],
+    [8.016129032258062, 0.9024663677130045],
+    [9.096774193548386, 0.9674887892376681],
+    [10.129032258064514, 0.9473094170403586],
+    [12.290322580645158, 0.9899103139013452],
+    [13.2258064516129, 0.9966367713004484],
+    [14.499999999999996, 1.0011210762331837],
+]
+"""
 
-# From El-Badry 2024, with no cuts  (Uncomment if using all triples, not just those with bp_rp colors)
-# bin1_discrete_xy = [
-#     [0.24193548387096797, 0.0011210762331836932],
-#     [1.290322580645161, 0.9069506726457399],
-#     [1.8064516129032255, 0.9899103139013452],
-#     [2.306451612903226, 1.0100896860986546],
-#     [14.741935483870964, 1.0011210762331837]
-# ]
-# bin2_discrete_xy = [
-#     [0.274193548387097, 0.0011210762331836932],
-#     [1.290322580645161, 0.8531390134529149],
-#     [1.8064516129032255, 0.9742152466367713],
-#     [2.322580645161289, 1.0033632286995515],
-#     [14.741935483870964, 0.9988789237668161]
-# ]
-# bin3_discrete_xy = [
-#     [0.25806451612903203, 0.0011210762331836932],
-#     [1.290322580645161, 0.803811659192825],
-#     [1.8064516129032255, 0.960762331838565],
-#     [2.322580645161289, 1.0033632286995515],
-#     [14.741935483870964, 0.9988789237668161]
-# ]
-# bin4_discrete_xy = [
-#     [0.25806451612903203, 0.0011210762331836932],
-#     [0.7741935483870965, 0.11995515695067271],
-#     [1.290322580645161, 0.6782511210762332],
-#     [1.8064516129032255, 0.9316143497757847],
-#     [2.338709677419354, 0.9966367713004484],
-#     [14.532258064516125, 1.0033632286995515]
-# ]
-# bin5_discrete_xy = [
-#     [0.274193548387097, 0.0011210762331839152],
-#     [0.7741935483870965, 0.005605381165919132],
-#     [1.8064516129032255, 0.7432735426008968],
-#     [2.322580645161289, 0.9114349775784754],
-#     [2.854838709677418, 0.960762331838565],
-#     [3.354838709677419, 0.9831838565022422],
-#     [3.854838709677419, 0.9921524663677129],
-#     [14.532258064516125, 1.0011210762331837]
-# ]
-# bin6_discrete_xy = [
-#     [0.24193548387096797, 0.0033632286995515237],
-#     [1.2741935483870965, 0.0011210762331836932],
-#     [1.790322580645161, 0.12443946188340815],
-#     [2.838709677419355, 0.6760089686098655],
-#     [3.354838709677419, 0.8172645739910314],
-#     [3.887096774193547, 0.8800448430493273],
-#     [4.403225806451612, 0.9226457399103138],
-#     [4.903225806451612, 0.9786995515695067],
-#     [5.435483870967741, 0.9652466367713004],
-#     [5.935483870967741, 0.9831838565022422],
-#     [6.903225806451612, 0.976457399103139],
-#     [7.483870967741934, 0.9988789237668161],
-#     [14.58064516129032, 1.0011210762331837]
-# ]
-# bin7_discrete_xy = [
-#     [0.274193548387097, 0.0011210762331836932],
-#     [1.6290322580645156, 0.0011210762331836932],
-#     [2.677419354838709, 0.0594170403587444],
-#     [4.806451612903224, 0.6199551569506726],
-#     [6.951612903225804, 0.8800448430493273],
-#     [8.016129032258062, 0.9024663677130045],
-#     [9.096774193548386, 0.9674887892376681],
-#     [10.129032258064514, 0.9473094170403586],
-#     [12.290322580645158, 0.9899103139013452],
-#     [13.2258064516129, 0.9966367713004484],
-#     [14.499999999999996, 1.0011210762331837],
-# ]
-
-
-# From El-Badry 2024, with BP_RP color cuts
+# From El-Badry 2024, with BP_RP color cuts (their Figure 2 Row 3)
 bin1_discrete_xy = [
     [0.23972602739725968, 0.0011848341232227888],
     [0.7705479452054789, 0.2665876777251184],
@@ -547,7 +593,7 @@ bin6_interp = interp1d([point[0] for point in bin6_discrete_xy], [point[1] for p
 bin7_interp = interp1d([point[0] for point in bin7_discrete_xy], [point[1] for point in bin7_discrete_xy], 
                         kind='linear', fill_value='extrapolate')
 
-# Function to get the probability of resolution given theta (arcsec) and delta G (app mag)
+# Probability that a pair is resolved given theta (arcsec) and delta G (mag) of the pair
 def get_resolution_probability(theta, deltaG):
     deltaG = np.abs(deltaG)
     if deltaG_bins[0][0] <= deltaG < deltaG_bins[0][1]:
