@@ -5,7 +5,7 @@
 
 ## Overview
 
-This repository contains the associated data and code from the Gaia Resolved Triples project. This includes
+This repository contains the associated data and code from the Gaia Resolved Triples project (https://ui.adsabs.harvard.edu/abs/2025arXiv250616513S/abstract). This includes
 
 1. **`triples_catalog.csv`** contains the **high-confidence triple sample**, where **each row corresponds to one triple**.
   - The data for the **inner primary**, **inner secondary**, and **tertiary** components are labeled with suffixes `1`, `2`, and `3`, respectively.
