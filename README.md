@@ -10,6 +10,8 @@ This repository contains the associated data and code from the Gaia Resolved Tri
 1. **`triples_catalog.csv`** contains the **high-confidence triple sample**, where **each row corresponds to one triple**.
   - The data for the **inner primary**, **inner secondary**, and **tertiary** components are labeled with suffixes `1`, `2`, and `3`, respectively.
 2. **`sampling_triples.ipynb`** is a notebook with code to sample a triple population with masses, separations, eccentricities, and inclinations. The code also allows sampling a complete stellar population (singles, binaries, and triples).
+3. **`resolved_quads_500pc.csv`** provides a sample of resolved quadruple star systems within 500 pc.
+4. **`unresolved_higher_order_multiples.csv`** provides a sample of 4+ stars systems with one or more unresolved binary components within 500 pc.
 ---
 
 ## Contents
