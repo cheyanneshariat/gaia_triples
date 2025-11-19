@@ -1,4 +1,4 @@
-# Gaia Resolved Triples Catalog  
+# Gaia Triples  
 **Shariat, El-Badry, & Naoz (2025)**
 
 ---
